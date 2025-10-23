@@ -1,0 +1,358 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/*
+ Enums
+*/
+enum KycStatus {
+  pending
+  in_progress
+  verified
+  rejected
+}
+
+enum AgreementStatus {
+  draft
+  sent
+  signed
+  expired
+  cancelled
+}
+
+enum LeaseStatus {
+  active
+  terminated
+  pending
+  expired
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  failed
+  refunded
+}
+
+/*
+ Core tenant / multi-tenant models
+*/
+model Tenant {
+  id          String    @id @default(cuid())
+  name        String
+  domain      String?   @unique
+  plan        String
+  meta        Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  users       User[]          @relation("tenantUsers")
+  properties  Property[]
+  auditLogs   AuditLog[]
+  
+  @@index([domain])
+}
+
+/*
+ Platform user (belongs to a Tenant)
+*/
+model User {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation("tenantUsers", fields:[tenantId], references:[id], onDelete: Cascade)
+  email         String
+  phone         String?
+  name          String?
+  passwordHash  String?  // if using local auth
+  roles         Json     // e.g. ["owner","manager","broker"]
+  isActive      Boolean  @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  occupant       Occupant?
+  kycPerformed   KycRecord[] @relation("kycPerformedBy")
+  auditLogs      AuditLog[]
+  complaintsRaised Complaint[] @relation("complaintRaisedBy")
+  complaintsAssigned Complaint[] @relation("complaintAssignee")
+  
+  @@index([tenantId])
+  @@index([email])
+}
+
+/*
+ Property, Building, Flat & Occupancy history
+*/
+model Property {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields:[tenantId], references:[id], onDelete: Cascade)
+  name        String
+  address     String
+  pincode     String
+  type        String
+  flats       Flat[]
+  agreements  Agreement[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([pincode])
+}
+
+model Flat {
+  id           String   @id @default(cuid())
+  propertyId   String
+  property     Property @relation(fields:[propertyId], references:[id], onDelete: Cascade)
+  number       String
+  floor        Int
+  areaSqFt     Float?
+  currentLease Lease?   @relation("currentLease", fields: [currentLeaseId], references: [id])
+  currentLeaseId String? @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenants      TenantTenant[] // join table for multiple tenant records over time
+  maintenances Maintenance[]
+  complaints   Complaint[]
+  files        File[]         @relation("flatFiles")
+
+  @@index([propertyId])
+  @@index([number])
+}
+
+/*
+ Historical assignment of occupant to flat - a join/occupancy table
+*/
+model TenantTenant {
+  id         String   @id @default(cuid())
+  flatId     String
+  flat       Flat     @relation(fields:[flatId], references:[id], onDelete: Cascade)
+  tenantId   String   // refers to platform Tenant? (rename if confusing) - here used as tenant-owner context id
+  occupantId String   // link to Occupant.id
+  occupant   Occupant @relation(fields: [occupantId], references: [id], onDelete: Cascade)
+  startAt    DateTime
+  endAt      DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([flatId])
+  @@index([occupantId])
+}
+
+/*
+ Occupant (person living in flat). Separate from User so non-app occupants can exist.
+*/
+model Occupant {
+  id           String   @id @default(cuid())
+  userId       String?  @unique // optional link if occupant also has a platform user account
+  user         User?    @relation(fields:[userId], references:[id], onDelete: SetNull)
+  name         String
+  email        String?
+  phone        String?
+  aadhaarHash  String?  // store hash for privacy; raw PII encrypted elsewhere
+  panHash      String?
+  kycStatus    KycStatus @default(pending)
+  kycRecords   KycRecord[]
+  agreements   Agreement[]
+  payments     RentPayment[]
+  tenantFlats  TenantTenant[]
+  leases       Lease[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  files        File[]   @relation("occupantFiles")
+
+  @@index([userId])
+  @@index([aadhaarHash])
+}
+
+/*
+ KYC records for an occupant (each verification attempt)
+*/
+model KycRecord {
+  id             String   @id @default(cuid())
+  occupantId     String
+  occupant       Occupant @relation(fields:[occupantId], references:[id], onDelete: Cascade)
+  source         String   // aadhaar, pan, digilocker, police
+  status         KycStatus @default(pending)
+  providerJobId  String?  // provider's reference
+  reportUrl      String?  // signed report in S3
+  meta           Json?
+  attemptedAt    DateTime @default(now())
+  completedAt    DateTime?
+  performedById  String?  // user who triggered / reviewed the KYC
+  performedBy    User?    @relation("kycPerformedBy", fields:[performedById], references:[id], onDelete: SetNull)
+
+  files          File[]   @relation("kycFiles")
+
+  @@index([occupantId])
+  @@index([status])
+}
+
+/*
+ Lease for a flat -> referenced by Flat.currentLease
+*/
+model Lease {
+  id          String    @id @default(cuid())
+  flatId      String
+  occupantId  String
+  occupant    Occupant  @relation(fields:[occupantId], references:[id], onDelete: Cascade)
+  startAt     DateTime
+  endAt       DateTime?
+  rentAmount  Float
+  securityAmt Float?
+  status      LeaseStatus @default(active)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  flats       Flat[]    @relation("currentLease")
+  agreements  Agreement[]
+  payments    RentPayment[]
+
+  @@index([flatId])
+  @@index([occupantId])
+  @@index([status])
+}
+
+/*
+ Agreements between landlord and occupant
+*/
+model Agreement {
+  id            String    @id @default(cuid())
+  propertyId    String
+  property      Property  @relation(fields:[propertyId], references:[id], onDelete: Cascade)
+  occupantId    String
+  occupant      Occupant  @relation(fields:[occupantId], references:[id], onDelete: Cascade)
+  leaseId       String?
+  lease         Lease?    @relation(fields:[leaseId], references:[id], onDelete: SetNull)
+  landlordId    String
+  pdfUrl        String?
+  status        AgreementStatus @default(draft)
+  eSignMeta     Json?     // eSign transaction details
+  startAt       DateTime
+  endAt         DateTime
+  rentAmount    Float
+  securityAmt   Float
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  signatureHash String?   // hash for immutability proof
+
+  files         File[]    @relation("agreementFiles")
+
+  @@index([propertyId])
+  @@index([occupantId])
+  @@index([leaseId])
+}
+
+/*
+ Rent / recurring payment records
+*/
+model RentPayment {
+  id           String   @id @default(cuid())
+  occupantId   String
+  occupant     Occupant @relation(fields:[occupantId], references:[id], onDelete: Cascade)
+  leaseId      String?  // optional: linked lease
+  lease        Lease?   @relation(fields:[leaseId], references:[id], onDelete: SetNull)
+  amount       Float
+  dueDate      DateTime
+  paidAt       DateTime?
+  status       PaymentStatus  @default(pending)
+  providerTxn  Json?
+  receiptUrl   String?
+  createdAt    DateTime @default(now())
+
+  @@index([occupantId])
+  @@index([leaseId])
+  @@index([status])
+}
+
+/*
+ Maintenance records tied to flats (separate from RentPayment)
+*/
+model Maintenance {
+  id        String   @id @default(cuid())
+  flatId    String
+  flat      Flat     @relation(fields:[flatId], references:[id], onDelete: Cascade)
+  month     String
+  amount    Float
+  paid      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([flatId])
+}
+
+/*
+ Complaints raised by users/tenants for a flat
+*/
+model Complaint {
+  id        String   @id @default(cuid())
+  title     String
+  description String?
+  status    String   @default("OPEN")
+  flatId    String
+  flat      Flat     @relation(fields: [flatId], references: [id], onDelete: Cascade)
+  raisedById String?
+  raisedBy  User?    @relation("complaintRaisedBy", fields:[raisedById], references:[id], onDelete: SetNull)
+  assigneeId String?
+  assignee   User?   @relation("complaintAssignee", fields:[assigneeId], references:[id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events    Json?
+  files     File[]   @relation("complaintFiles")
+
+  @@index([flatId])
+  @@index([status])
+}
+
+/*
+ Audit / activity log
+*/
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String?
+  tenant     Tenant?  @relation(fields:[tenantId], references:[id], onDelete: SetNull)
+  userId     String?
+  user       User?    @relation(fields:[userId], references:[id], onDelete: SetNull)
+  service    String
+  action     String
+  entity     String
+  entityId   String
+  diff       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([userId])
+}
+
+/*
+ Generic file storage reference - keep references to which entity it's attached to via relation arrays
+*/
+model File {
+  id         String   @id @default(cuid())
+  tenantId   String?
+  url        String
+  bucket     String
+  key        String
+  mime       String
+  size       Int
+  uploadedBy String?
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  // relation sides - one file can be linked to multiple contexts using separate relation fields
+  kycRecords    KycRecord[]   @relation("kycFiles")
+  agreements    Agreement[]   @relation("agreementFiles")
+  occupants     Occupant[]    @relation("occupantFiles")
+  flats         Flat[]        @relation("flatFiles")
+  complaints    Complaint[]   @relation("complaintFiles")
+
+  @@index([tenantId])
+  @@index([key])
+}
+
