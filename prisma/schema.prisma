@@ -39,6 +39,19 @@ enum PaymentStatus {
   refunded
 }
 
+enum NotificationStatus {
+  unread
+  read
+  archived
+}
+
+enum NotificationType {
+  info
+  warning
+  error
+  success
+}
+
 /*
  Core tenant / multi-tenant models
 */
@@ -51,9 +64,14 @@ model Tenant {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  users       User[]          @relation("tenantUsers")
-  properties  Property[]
-  auditLogs   AuditLog[]
+  users         User[]          @relation("tenantUsers")
+  properties    Property[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+  vendors       Vendor[]
+  events        Event[]
+  assets        Asset[]
+  announcements Announcement[]
   
   @@index([domain])
 }
@@ -80,6 +98,10 @@ model User {
   auditLogs      AuditLog[]
   complaintsRaised Complaint[] @relation("complaintRaisedBy")
   complaintsAssigned Complaint[] @relation("complaintAssignee")
+  notifications  Notification[]
+  eventsCreated  Event[]
+  eventAttendees EventAttendee[]
+  announcements  Announcement[]
   
   @@index([tenantId])
   @@index([email])
@@ -96,10 +118,13 @@ model Property {
   address     String
   pincode     String
   type        String
-  flats       Flat[]
-  agreements  Agreement[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  flats         Flat[]
+  agreements    Agreement[]
+  events        Event[]
+  assets        Asset[]
+  announcements Announcement[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([tenantId])
   @@index([pincode])
@@ -120,6 +145,7 @@ model Flat {
   tenants      TenantTenant[] // join table for multiple tenant records over time
   maintenances Maintenance[]
   complaints   Complaint[]
+  assets       Asset[]
   files        File[]         @relation("flatFiles")
 
   @@index([propertyId])
@@ -162,6 +188,7 @@ model Occupant {
   payments     RentPayment[]
   tenantFlats  TenantTenant[]
   leases       Lease[]
+  eventAttendees EventAttendee[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -278,12 +305,22 @@ model Maintenance {
   id        String   @id @default(cuid())
   flatId    String
   flat      Flat     @relation(fields:[flatId], references:[id], onDelete: Cascade)
+  vendorId  String?
+  vendor    Vendor?  @relation("vendorMaintenance", fields:[vendorId], references:[id], onDelete: SetNull)
+  title     String?
+  description String?
   month     String
   amount    Float
   paid      Boolean  @default(false)
+  status    String   @default("pending") // pending, in_progress, completed, cancelled
+  scheduledAt DateTime?
+  completedAt DateTime?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([flatId])
+  @@index([vendorId])
+  @@index([status])
 }
 
 /*
@@ -322,12 +359,218 @@ model AuditLog {
   service    String
   action     String
   entity     String
-  entityId   String
+  entityId   String?
   diff       Json?
   createdAt  DateTime @default(now())
 
   @@index([tenantId])
   @@index([userId])
+}
+
+/*
+ Announcements for community/property notifications
+*/
+model Announcement {
+  id          String   @id @default(cuid())
+  tenantId    String?
+  tenant      Tenant?  @relation(fields:[tenantId], references:[id], onDelete: SetNull)
+  propertyId  String?
+  property    Property? @relation(fields:[propertyId], references:[id], onDelete: SetNull)
+  title       String
+  content     String
+  priority    String   @default("normal") // low, normal, high, urgent
+  category    String?  // e.g., "maintenance", "event", "policy", "emergency"
+  isPublic    Boolean  @default(true)
+  isPinned    Boolean  @default(false)
+  publishAt   DateTime @default(now())
+  expiresAt   DateTime?
+  authorId    String?
+  author      User?    @relation(fields:[authorId], references:[id], onDelete: SetNull)
+  targetAudience String @default("all") // all, owners, tenants, specific_flats
+  targetFlats Json?    // array of flat IDs if targetAudience is specific_flats
+  viewCount   Int      @default(0)
+  meta        Json?    // additional announcement details
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  files       File[]   @relation("announcementFiles")
+
+  @@index([tenantId])
+  @@index([propertyId])
+  @@index([priority])
+  @@index([category])
+  @@index([publishAt])
+  @@index([isPinned])
+}
+
+/*
+ Assets for property management (furniture, appliances, etc.)
+*/
+model Asset {
+  id          String   @id @default(cuid())
+  tenantId    String?
+  tenant      Tenant?  @relation(fields:[tenantId], references:[id], onDelete: SetNull)
+  propertyId  String?
+  property    Property? @relation(fields:[propertyId], references:[id], onDelete: SetNull)
+  flatId      String?
+  flat        Flat?    @relation(fields:[flatId], references:[id], onDelete: SetNull)
+  name        String
+  description String?
+  category    String?  // e.g., "furniture", "appliance", "electronics"
+  brand       String?
+  model       String?
+  serialNumber String?
+  purchaseDate DateTime?
+  purchasePrice Float?
+  currentValue Float?
+  condition   String   @default("good") // excellent, good, fair, poor
+  location    String?  // specific location within property/flat
+  warrantyExpiry DateTime?
+  isActive    Boolean  @default(true)
+  meta        Json?    // additional asset details
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  maintenanceRecords AssetMaintenance[]
+  files       File[]   @relation("assetFiles")
+
+  @@index([tenantId])
+  @@index([propertyId])
+  @@index([flatId])
+  @@index([category])
+  @@index([condition])
+}
+
+/*
+ Asset maintenance records
+*/
+model AssetMaintenance {
+  id          String   @id @default(cuid())
+  assetId     String
+  asset       Asset    @relation(fields:[assetId], references:[id], onDelete: Cascade)
+  vendorId    String?
+  vendor      Vendor?  @relation("assetMaintenance", fields:[vendorId], references:[id], onDelete: SetNull)
+  title       String
+  description String?
+  type        String   @default("maintenance") // maintenance, repair, replacement
+  cost        Float?
+  scheduledAt DateTime?
+  completedAt DateTime?
+  status      String   @default("pending") // pending, in_progress, completed, cancelled
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([assetId])
+  @@index([vendorId])
+  @@index([status])
+}
+
+/*
+ Events for property/community activities
+*/
+model Event {
+  id          String   @id @default(cuid())
+  tenantId    String?
+  tenant      Tenant?  @relation(fields:[tenantId], references:[id], onDelete: SetNull)
+  propertyId  String?
+  property    Property? @relation(fields:[propertyId], references:[id], onDelete: SetNull)
+  title       String
+  description String?
+  location    String?
+  startAt     DateTime
+  endAt       DateTime?
+  isAllDay    Boolean  @default(false)
+  isRecurring Boolean  @default(false)
+  recurringPattern String? // e.g., "weekly", "monthly"
+  maxAttendees Int?
+  isPublic    Boolean  @default(true)
+  status      String   @default("scheduled") // scheduled, ongoing, completed, cancelled
+  createdById String?
+  createdBy   User?    @relation(fields:[createdById], references:[id], onDelete: SetNull)
+  meta        Json?    // additional event details
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  attendees   EventAttendee[]
+
+  @@index([tenantId])
+  @@index([propertyId])
+  @@index([startAt])
+  @@index([status])
+}
+
+/*
+ Event attendees/RSVPs
+*/
+model EventAttendee {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields:[eventId], references:[id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields:[userId], references:[id], onDelete: SetNull)
+  occupantId String?
+  occupant  Occupant? @relation(fields:[occupantId], references:[id], onDelete: SetNull)
+  status    String   @default("pending") // pending, confirmed, declined
+  rsvpAt    DateTime @default(now())
+
+  @@index([eventId])
+  @@index([userId])
+  @@index([occupantId])
+  @@unique([eventId, userId])
+  @@unique([eventId, occupantId])
+}
+
+/*
+ Vendors for maintenance and services
+*/
+model Vendor {
+  id          String   @id @default(cuid())
+  tenantId    String?
+  tenant      Tenant?  @relation(fields:[tenantId], references:[id], onDelete: SetNull)
+  name        String
+  email       String?
+  phone       String?
+  address     String?
+  serviceType String?  // e.g., "plumbing", "electrical", "cleaning"
+  isActive    Boolean  @default(true)
+  rating      Float?   // average rating
+  meta        Json?    // additional vendor details
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  maintenanceJobs Maintenance[] @relation("vendorMaintenance")
+  assetMaintenance AssetMaintenance[] @relation("assetMaintenance")
+
+  @@index([tenantId])
+  @@index([serviceType])
+  @@index([isActive])
+}
+
+/*
+ Notifications for users
+*/
+model Notification {
+  id          String   @id @default(cuid())
+  tenantId    String?
+  tenant      Tenant?  @relation(fields:[tenantId], references:[id], onDelete: SetNull)
+  userId      String?
+  user        User?    @relation(fields:[userId], references:[id], onDelete: SetNull)
+  title       String
+  message     String?
+  type        NotificationType @default(info)
+  status      NotificationStatus @default(unread)
+  entityType  String?  // e.g., "complaint", "payment", "maintenance"
+  entityId    String?  // reference to related entity
+  meta        Json?
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([status])
+  @@index([type])
 }
 
 /*
@@ -351,6 +594,8 @@ model File {
   occupants     Occupant[]    @relation("occupantFiles")
   flats         Flat[]        @relation("flatFiles")
   complaints    Complaint[]   @relation("complaintFiles")
+  assets        Asset[]       @relation("assetFiles")
+  announcements Announcement[] @relation("announcementFiles")
 
   @@index([tenantId])
   @@index([key])
