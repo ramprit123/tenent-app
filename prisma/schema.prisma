@@ -89,6 +89,7 @@ model User {
   passwordHash  String?  // if using local auth
   roles         Json     // e.g. ["owner","manager","broker"]
   isActive      Boolean  @default(true)
+  refreshToken  String?  // for JWT refresh token
   lastLoginAt   DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
