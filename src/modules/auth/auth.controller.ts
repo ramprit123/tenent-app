@@ -9,10 +9,10 @@ import {
   Get,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { AuthService } from './auth.service';
-import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { AuthService } from '@auth/auth.service';
+import { LoginDto } from '@auth/dto/login.dto';
+import { RegisterDto } from '@auth/dto/register.dto';
+import { RefreshTokenDto } from '@auth/dto/refresh-token.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
