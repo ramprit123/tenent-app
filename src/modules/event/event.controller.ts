@@ -1,8 +1,8 @@
 import { Controller, Get, Query, Param, Post, Body, Put, Delete, Req } from '@nestjs/common';
 import { EventService } from './event.service';
-import { QueryDto } from '../../common/query.dto';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
+import { QueryDto } from '../common/query.dto';
 
 /**
  * NOTE:

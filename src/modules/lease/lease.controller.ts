@@ -1,8 +1,8 @@
 import { Controller, Get, Query, Param, Post, Body, Put, Delete, Req } from '@nestjs/common';
 import { LeaseService } from './lease.service';
-import { QueryDto } from '../../common/query.dto';
 import { CreateLeaseDto } from './dto/create-lease.dto';
 import { UpdateLeaseDto } from './dto/update-lease.dto';
+import { QueryDto } from '../common/query.dto';
 
 /**
  * NOTE:

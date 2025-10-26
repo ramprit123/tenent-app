@@ -1,8 +1,8 @@
 import { Controller, Get, Query, Param, Post, Body, Put, Delete, Req } from '@nestjs/common';
 import { MaintenanceService } from './maintenance.service';
-import { QueryDto } from '../../common/query.dto';
 import { CreateMaintenanceDto } from './dto/create-maintenance.dto';
 import { UpdateMaintenanceDto } from './dto/update-maintenance.dto';
+import { QueryDto } from '../common/query.dto';
 
 /**
  * NOTE:

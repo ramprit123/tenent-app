@@ -1,6 +1,6 @@
 import { Controller, Get, Query, Param, Post, Body, Put, Delete, Req } from '@nestjs/common';
 import { VendorService } from './vendor.service';
-import { QueryDto } from '../../common/query.dto';
+import { QueryDto } from '../common/query.dto';
 import { CreateVendorDto } from './dto/create-vendor.dto';
 import { UpdateVendorDto } from './dto/update-vendor.dto';
 

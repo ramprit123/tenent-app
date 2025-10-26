@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { FlatService } from './flat.service';
 import { FlatController } from './flat.controller';
 import { PrismaService } from '../../prisma.service';
-import { AuditService } from '../../common/audit.service';
+import { AuditService } from '../common/audit.service';
 
 @Module({
   controllers: [FlatController],

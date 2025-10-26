@@ -1,8 +1,8 @@
 import { Controller, Get, Query, Param, Post, Body, Put, Delete, Req } from '@nestjs/common';
 import { FlatService } from './flat.service';
-import { QueryDto } from '../../common/query.dto';
 import { CreateFlatDto } from './dto/create-flat.dto';
 import { UpdateFlatDto } from './dto/update-flat.dto';
+import { QueryDto } from '../common/query.dto';
 
 /**
  * NOTE:

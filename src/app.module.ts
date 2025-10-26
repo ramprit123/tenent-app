@@ -11,7 +11,6 @@ import { EventModule } from './modules/event/event.module';
 import { FlatModule } from './modules/flat/flat.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { NotificationModule } from './modules/notification/notification.module';
-import { OllamaModule } from './modules/ollama/ollama.module';
 import { RentPaymentModule } from './modules/rent-payment/rent-payment.module';
 import { TenantModule } from './modules/tenant/tenant.module';
 import { UserModule } from './modules/user/user.module';
@@ -33,7 +32,6 @@ import { VendorModule } from './modules/vendor/vendor.module';
     AssetModule,
     NotificationModule,
     AuditLogModule,
-    OllamaModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,8 +1,8 @@
 import { Controller, Get, Query, Param, Post, Body, Put, Delete, Req } from '@nestjs/common';
 import { AssetService } from './asset.service';
-import { QueryDto } from '../../common/query.dto';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
+import { QueryDto } from '../common/query.dto';
 
 /**
  * NOTE:

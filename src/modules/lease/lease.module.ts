@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { LeaseService } from './lease.service';
 import { LeaseController } from './lease.controller';
 import { PrismaService } from '../../prisma.service';
-import { AuditService } from '../../common/audit.service';
+import { AuditService } from '../common/audit.service';
 
 @Module({
   controllers: [LeaseController],

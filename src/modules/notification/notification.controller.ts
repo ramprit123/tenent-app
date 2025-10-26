@@ -1,8 +1,8 @@
 import { Controller, Get, Query, Param, Post, Body, Put, Delete, Req } from '@nestjs/common';
 import { NotificationService } from './notification.service';
-import { QueryDto } from '../../common/query.dto';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { UpdateNotificationDto } from './dto/update-notification.dto';
+import { QueryDto } from '../common/query.dto';
 
 /**
  * NOTE:

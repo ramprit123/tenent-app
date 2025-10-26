@@ -1,8 +1,8 @@
 import { Controller, Get, Query, Param, Post, Body, Put, Delete, Req } from '@nestjs/common';
 import { FileService } from './file.service';
-import { QueryDto } from '../../common/query.dto';
 import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileDto } from './dto/update-file.dto';
+import { QueryDto } from '../common/query.dto';
 
 /**
  * NOTE:

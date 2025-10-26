@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
-import { AuditService } from '../../common/audit.service';
-import { buildPrismaQuery } from '../../common/query.util';
+import { buildPrismaQuery } from '../common/query.util';
+import { AuditService } from '../common/audit.service';
 
 @Injectable()
 export class AnnouncementService {

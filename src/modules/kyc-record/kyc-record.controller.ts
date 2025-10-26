@@ -1,8 +1,8 @@
 import { Controller, Get, Query, Param, Post, Body, Put, Delete, Req } from '@nestjs/common';
 import { KycRecordService } from './kyc-record.service';
-import { QueryDto } from '../../common/query.dto';
 import { CreateKycRecordDto } from './dto/create-kyc-record.dto';
 import { UpdateKycRecordDto } from './dto/update-kyc-record.dto';
+import { QueryDto } from '../common/query.dto';
 
 /**
  * NOTE:

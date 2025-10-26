@@ -1,8 +1,8 @@
 import { Controller, Get, Query, Param, Post, Body, Put, Delete, Req } from '@nestjs/common';
 import { AuditLogService } from './audit-log.service';
-import { QueryDto } from '../../common/query.dto';
 import { CreateAuditLogDto } from './dto/create-audit-log.dto';
 import { UpdateAuditLogDto } from './dto/update-audit-log.dto';
+import { QueryDto } from '../common/query.dto';
 
 /**
  * NOTE:

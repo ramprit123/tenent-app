@@ -1,8 +1,8 @@
 import { Controller, Get, Query, Param, Post, Body, Put, Delete, Req } from '@nestjs/common';
 import { AgreementService } from './agreement.service';
-import { QueryDto } from '../../common/query.dto';
 import { CreateAgreementDto } from './dto/create-agreement.dto';
 import { UpdateAgreementDto } from './dto/update-agreement.dto';
+import { QueryDto } from '../common/query.dto';
 
 /**
  * NOTE:

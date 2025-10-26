@@ -1,6 +1,6 @@
 import { Controller, Get, Query, Param, Post, Body, Put, Delete, Req } from '@nestjs/common';
 import { RentPaymentService } from './rent-payment.service';
-import { QueryDto } from '../../common/query.dto';
+import { QueryDto } from '../common/query.dto';
 import { CreateRentPaymentDto } from './dto/create-rent-payment.dto';
 import { UpdateRentPaymentDto } from './dto/update-rent-payment.dto';
 

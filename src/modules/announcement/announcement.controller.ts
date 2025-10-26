@@ -1,8 +1,8 @@
 import { Controller, Get, Query, Param, Post, Body, Put, Delete, Req } from '@nestjs/common';
 import { AnnouncementService } from './announcement.service';
-import { QueryDto } from '../../common/query.dto';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { UpdateAnnouncementDto } from './dto/update-announcement.dto';
+import { QueryDto } from '../common/query.dto';
 
 /**
  * NOTE:

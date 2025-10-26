@@ -16,7 +16,7 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
       secret:
         process.env.JWT_SECRET ||
         'your-super-secret-jwt-key-change-in-production',
-      signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || '15m' },
+      signOptions: { expiresIn: '15Min' },
     }),
   ],
   providers: [

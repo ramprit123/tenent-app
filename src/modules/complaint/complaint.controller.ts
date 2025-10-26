@@ -1,8 +1,8 @@
 import { Controller, Get, Query, Param, Post, Body, Put, Delete, Req } from '@nestjs/common';
 import { ComplaintService } from './complaint.service';
-import { QueryDto } from '../../common/query.dto';
 import { CreateComplaintDto } from './dto/create-complaint.dto';
 import { UpdateComplaintDto } from './dto/update-complaint.dto';
+import { QueryDto } from '../common/query.dto';
 
 /**
  * NOTE:
